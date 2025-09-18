@@ -436,69 +436,51 @@
             ]
         };
 
-        // News sources - Top economic journals
-        const newsData = [
-            {
-                time: '2 min ago',
-                title: 'Fed Signals Potential Rate Cuts in Q2 2025',
-                source: 'Wall Street Journal',
-                url: 'https://www.wsj.com'
-            },
-            {
-                time: '8 min ago',
-                title: 'Bank of Canada Holds Rates Steady at 3.75%',
-                source: 'Financial Times',
-                url: 'https://www.ft.com'
-            },
-            {
-                time: '15 min ago',
-                title: 'Tech Stocks Rally on Strong Earnings Reports',
-                source: 'Bloomberg',
-                url: 'https://www.bloomberg.com'
-            },
-            {
-                time: '23 min ago',
-                title: 'Oil Prices Decline Amid Demand Concerns',
-                source: 'Reuters',
-                url: 'https://www.reuters.com'
-            },
-            {
-                time: '31 min ago',
-                title: 'TSX Composite Index Reaches New 2025 High',
-                source: 'The Globe and Mail',
-                url: 'https://www.theglobeandmail.com'
-            },
-            {
-                time: '45 min ago',
-                title: 'European Markets Mixed After ECB Minutes',
-                source: 'Financial Post',
-                url: 'https://financialpost.com'
-            },
-            {
-                time: '52 min ago',
-                title: 'Gold Prices Rise on Geopolitical Uncertainty',
-                source: 'CNBC',
-                url: 'https://www.cnbc.com'
-            },
-            {
-                time: '1 hour ago',
-                title: 'Canadian Dollar Strengthens Against USD',
-                source: 'The Economist',
-                url: 'https://www.economist.com'
-            },
-            {
-                time: '1 hour ago',
-                title: 'AI Chip Makers See Surge in Demand',
-                source: 'Forbes',
-                url: 'https://www.forbes.com'
-            },
-            {
-                time: '2 hours ago',
-                title: 'Corporate Bond Yields Hit Six-Month Low',
-                source: 'Barron\'s',
-                url: 'https://www.barrons.com'
+
+        // Fetch live financial news from NewsAPI.org
+        let newsData = [];
+        const NEWSAPI_KEY = 'c1f44b3e087f40c8983d73c9f2d6c815';
+        // You can change the query or sources as needed
+        const NEWSAPI_URL = `https://newsapi.org/v2/top-headlines?category=business&language=en&pageSize=10&apiKey=${NEWSAPI_KEY}`;
+        let lastNewsFetchDate = null;
+
+        async function fetchLiveNews() {
+            try {
+                const today = new Date().toISOString().slice(0, 10);
+                if (lastNewsFetchDate === today && newsData.length > 0) {
+                    renderNews();
+                    return;
+                }
+                const response = await fetch(NEWSAPI_URL);
+                const data = await response.json();
+                if (data.status === 'ok' && Array.isArray(data.articles)) {
+                    newsData = data.articles.map(item => ({
+                        time: new Date(item.publishedAt).toLocaleString(),
+                        title: item.title,
+                        source: item.source && item.source.name ? item.source.name : '',
+                        url: item.url
+                    }));
+                    lastNewsFetchDate = today;
+                    renderNews();
+                } else {
+                    newsData = [{
+                        time: '',
+                        title: 'Failed to load news feed.',
+                        source: '',
+                        url: '#'
+                    }];
+                    renderNews();
+                }
+            } catch (e) {
+                newsData = [{
+                    time: '',
+                    title: 'Error loading news feed.',
+                    source: '',
+                    url: '#'
+                }];
+                renderNews();
             }
-        ];
+        }
 
         // Function to render securities
         function renderSecurities(data, elementId) {
@@ -525,7 +507,10 @@
         function renderNews() {
             const newsContainer = document.getElementById('news-feed');
             newsContainer.innerHTML = '';
-            
+            if (!newsData || newsData.length === 0) {
+                newsContainer.innerHTML = '<div class="news-item">No news available.</div>';
+                return;
+            }
             newsData.forEach(item => {
                 const newsItem = document.createElement('div');
                 newsItem.className = 'news-item';
@@ -612,49 +597,8 @@
             }, 100);
         }
 
-        // Function to add new news items
-        function updateNews() {
-            const newsTitles = [
-                'Markets React to Economic Data Release',
-                'Central Bank Policy Meeting Minutes Released',
-                'Tech Sector Leads Market Recovery',
-                'Energy Stocks Under Pressure',
-                'Currency Markets Show Volatility',
-                'Bond Yields Rise on Inflation Concerns',
-                'Commodity Prices Mixed in Early Trading',
-                'Banking Sector Shows Strong Performance',
-                'Retail Sales Data Exceeds Expectations',
-                'Manufacturing Index Points to Growth'
-            ];
-            
-            const sources = ['Wall Street Journal', 'Financial Times', 'Bloomberg', 'Reuters', 'The Globe and Mail', 'CNBC', 'Forbes', 'The Economist', 'Barron\'s', 'Financial Post'];
-            
-            // Add a new news item and remove the oldest
-            const randomTitle = newsTitles[Math.floor(Math.random() * newsTitles.length)];
-            const randomSource = sources[Math.floor(Math.random() * sources.length)];
-            
-            newsData.unshift({
-                time: 'Just now',
-                title: randomTitle,
-                source: randomSource,
-                url: `https://www.${randomSource.toLowerCase().replace(/[^a-z]/g, '')}.com`
-            });
-            
-            // Update times
-            newsData.forEach((item, index) => {
-                if (index > 0) {
-                    const minutes = index * 7;
-                    if (minutes < 60) {
-                        item.time = `${minutes} min ago`;
-                    } else {
-                        item.time = `${Math.floor(minutes / 60)} hour${minutes >= 120 ? 's' : ''} ago`;
-                    }
-                }
-            });
-            
-            newsData = newsData.slice(0, 10);
-            renderNews();
-        }
+
+        // Remove old updateNews function (now handled by fetchLiveNews)
 
         // Initial render
         renderSecurities(marketData.tsxEquities, 'tsx-equities');
@@ -662,7 +606,7 @@
         renderSecurities(marketData.forex, 'forex');
         renderSecurities(marketData.bonds, 'bonds');
         renderSecurities(marketData.commodities, 'commodities');
-        renderNews();
+    fetchLiveNews();
         updateTimestamp();
         checkMarketStatus();
 
@@ -670,7 +614,8 @@
         setInterval(updateTimestamp, 1000);
         setInterval(checkMarketStatus, 60000);
         setInterval(updatePrices, 3000); // Update prices every 3 seconds
-        setInterval(updateNews, 30000); // Update news every 30 seconds
+    // Refresh news once per day (every 24 hours)
+    setInterval(fetchLiveNews, 24 * 60 * 60 * 1000);
     </script>
 </body>
 </html>
